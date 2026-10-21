@@ -1,48 +1,66 @@
-"""
-infrlo 静态站点服务入口
-自动定位 index.html 所在目录作为站点根目录
-"""
 import http.server
 import socketserver
 import os
 import sys
+import traceback
 
-PORT = int(os.environ.get("PORT", 8000))
+# 从环境变量读端口，infrlo 一定会传
+PORT = int(os.environ.get("PORT", 8080))
+
+# 定位站点目录
 BASE = os.path.dirname(os.path.abspath(__file__))
-
-
-def find_site_root(base):
-    # 优先：base 自身就有 index.html
-    if os.path.isfile(os.path.join(base, "index.html")):
-        return base
-    # 其次：base 下第一个含 index.html 的直接子目录
-    for name in sorted(os.listdir(base)):
-        cand = os.path.join(base, name)
+if os.path.isfile(os.path.join(BASE, "index.html")):
+    ROOT = BASE
+else:
+    for name in os.listdir(BASE):
+        cand = os.path.join(BASE, name)
         if os.path.isdir(cand) and os.path.isfile(os.path.join(cand, "index.html")):
-            return cand
-    return base
+            ROOT = cand
+            break
+    else:
+        ROOT = BASE
 
-ROOT = find_site_root(BASE)
 os.chdir(ROOT)
 
-print("=" * 50, flush=True)
-print(f"PORT      : {PORT}", flush=True)
-print(f"SITE ROOT : {ROOT}", flush=True)
-print(f"index.html: {os.path.isfile('index.html')}", flush=True)
-print(f"files     : {sorted(os.listdir('.'))}", flush=True)
-print("=" * 50, flush=True)
-
+# 启动信息（全部 flush 确保日志能看到）
+print("=" * 60, flush=True)
+print(f"PORT env var : {os.environ.get('PORT', 'NOT SET')}", flush=True)
+print(f"Binding PORT : {PORT}", flush=True)
+print(f"SITE ROOT    : {ROOT}", flush=True)
+print(f"index.html   : {os.path.isfile('index.html')}", flush=True)
+print(f"cwd files    : {sorted(os.listdir('.'))}", flush=True)
+print("=" * 60, flush=True)
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         sys.stderr.write("[%s] %s\n" % (self.address_string(), fmt % args))
         sys.stderr.flush()
 
+    def do_GET(self):
+        if self.path == '/' or self.path == '':
+            self.path = '/index.html'
+        elif self.path.endswith('/'):
+            self.path += 'index.html'
+        elif '.' not in self.path.split('/')[-1]:
+            if os.path.isdir('.' + self.path):
+                self.path += '/index.html'
+        super().do_GET()
 
 try:
+    print(f"Starting TCP server on 0.0.0.0:{PORT} ...", flush=True)
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"Listening on 0.0.0.0:{PORT}", flush=True)
+        print(f"✅ Server listening on 0.0.0.0:{PORT}", flush=True)
+        sys.stdout.flush()
         httpd.serve_forever()
 except OSError as e:
-    print(f"FATAL: cannot bind port {PORT}: {e}", flush=True)
+    print(f"❌ FATAL: Cannot bind port {PORT}: {e}", flush=True)
+    traceback.print_exc()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    raise
+except Exception as e:
+    print(f"❌ FATAL: Unexpected error: {e}", flush=True)
+    traceback.print_exc()
+    sys.stdout.flush()
+    sys.stderr.flush()
     raise
