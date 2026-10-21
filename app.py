@@ -3,9 +3,22 @@ import socketserver
 import os
 import sys
 import traceback
+import socket
 
-# 从环境变量读端口，infrlo 一定会传
-PORT = int(os.environ.get("PORT", 3000))
+# ===== 端口检测 =====
+def find_open_port():
+    for p in [3000, 8000, 8080, 5000, 80, 9000]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind(("0.0.0.0", p))
+            s.close()
+            return p
+        except OSError:
+            continue
+    return 8080
+
+PORT = find_open_port()
+# ====================
 
 # 定位站点目录
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +35,7 @@ else:
 
 os.chdir(ROOT)
 
-# 启动信息（全部 flush 确保日志能看到）
+# 启动信息
 print("=" * 60, flush=True)
 print(f"PORT env var : {os.environ.get('PORT', 'NOT SET')}", flush=True)
 print(f"Binding PORT : {PORT}", flush=True)
@@ -33,7 +46,7 @@ print("=" * 60, flush=True)
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
-        sys.stderr.write("[%s] %s\n" % (self.address_string(), fmt % args))
+        sys.stderr.write("[%s] %s\n" % (self.address_address, fmt % args))
         sys.stderr.flush()
 
     def do_GET(self):
