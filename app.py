@@ -5,7 +5,7 @@ import sys
 import traceback
 
 # 从环境变量读端口，infrlo 一定会传
-PORT = int(os.environ.get("PORT", 8080))
+PORT = int(os.environ.get("PORT", 3000))
 
 # 定位站点目录
 BASE = os.path.dirname(os.path.abspath(__file__))
