@@ -1,8 +1,9 @@
-name: Deploy to GitHub Pages
+name: Deploy Static Site to GitHub Pages
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,16 +13,23 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Prepare site
+        run: |
+          mkdir -p _site
+          cp -r web-tool/. _site/
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: web_tool
-
+          path: _site
+          
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
